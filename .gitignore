@@ -1,0 +1,26 @@
+
+.DS_Store
+
+# C extensions
+*.so
+*.c*
+*.pyc
+# Distribution / packaging
+cython_debug/
+build/
+dist/
+*.egg-info/
+
+### ides ###
+.vscode/*
+!.vscode/launch.json
+!setup.cfg
+.idea
+
+# Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
+
+*__pycache__
+*.png
+*.csv
+!samples/**/*.csv
+!samples/**/*.png

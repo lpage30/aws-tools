@@ -1,0 +1,28 @@
+
+[project]
+name = "aws-tools"
+version = "2025.1.0"
+authors = [
+    { name = "Larry Page", email = "lawrence.page@live.com" },
+]
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.13"
+license = { text = "MIT License" }
+dependencies = [
+    "attrs",
+    "botocore",
+    "boto3"
+]
+
+[project.urls]
+Homepage = "https://github.com/lpage30/aws-tools"
+
+[project.scripts]
+s3-bucket-download = "cli.s3.bucket_download:main"
+s3-bucket-upload =  "cli.s3.bucket_upload:main"
+s3-list-buckets-like = "cli.s3.list_buckets_like:main"
+s3-list-objects-like = "cli.s3.list_objects_like:main"
+s3-urls-like = "cli.s3.list_urls_like:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
