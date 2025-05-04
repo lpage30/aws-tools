@@ -46,7 +46,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    args = parse_args
+    args = parse_args()
     initialize_logging(args.log_level)
 
     try:

@@ -53,7 +53,7 @@ class S3Client:
             result.append(content.get("Key"))
         return result
 
-    def get_object(self, bucket: str, key: str) -> StreamingBody():
+    def get_object(self, bucket: str, key: str) -> StreamingBody:
         response = self.__client.get_object(Bucket=bucket, Key=key)
         return response.get("Body")
 

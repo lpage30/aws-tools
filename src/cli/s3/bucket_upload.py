@@ -4,7 +4,7 @@ import sys
 
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import S3Client
-from util.aws_account_api import get_boto_session_aws_account, IamRole
+from util.aws_account_api import get_boto_session_aws_account
 
 logger = get_default_logger()
 def parse_args() -> argparse.Namespace:
@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     return args
 
 def main() -> None:
-    args = parse_args
+    args = parse_args()
     initialize_logging(args.log_level)
 
     try:

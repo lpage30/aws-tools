@@ -8,15 +8,101 @@ provide a cli command set for aws api. Initial approach is s3
 contains 1 file per cli command. setup.py contains hooks to these cli commands
 - bucket_download 
   ```
-  s3-bucket-download --aws-account-name <account-name> --bucket <bucket> [--key-prefix <prefix> --log-level <debug|info|warning|error|critical>] --output-directory <directory-for-objects>
+  usage: s3-bucket-download [-h] [--log-level {debug,info,warning,error,critical}] [--aws-profile-name AWS_PROFILE_NAME] [--bucket BUCKET]
+                          [--key-prefix KEY_PREFIX] [--output-directory OUTPUT_DIRECTORY]
+
+  Export bucket records to csv.
+  
+  options:
+    -h, --help            show this help message and exit
+    --log-level {debug,info,warning,error,critical}
+                          The level of logging output by this program
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+    --bucket BUCKET       bucket from which to download
+    --key-prefix KEY_PREFIX
+                          key-prefix of objects to download
+    --output-directory OUTPUT_DIRECTORY
+                          directory in which all objects will be downloaded
   ```
-  downloads all objects from provided s3 bucket with provided optional key-prefix into provided directory
 - bucket_upload 
   ```
-  s3-bucket-upload --aws-account-name <account-name> --bucket <bucket> [---log-level <debug|info|warning|error|critical>] --input-directory <directory-of-objects-to-upload>
-  ```
-  uploads all objects from provided input directory to provided s3 bucket. s3 key will be the filename of the object.
+  usage: s3-bucket-upload [-h] [--log-level {debug,info,warning,error,critical}] [--aws-profile-name AWS_PROFILE_NAME] [--bucket BUCKET]
+                        [--input-directory INPUT_DIRECTORY]
 
+  Import csv records to bucket.
+  
+  options:
+    -h, --help            show this help message and exit
+    --log-level {debug,info,warning,error,critical}
+                          The level of logging output by this program
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+    --bucket BUCKET       bucket to upload into
+    --input-directory INPUT_DIRECTORY
+                          directory from which all files will uploaded into bucket
+  ```
+- list_buckets_like
+  ```
+  usage: s3-list-buckets-like [-h] [--log-level {debug,info,warning,error,critical}] [--aws-profile-name AWS_PROFILE_NAME] [--like-name LIKE_NAME]
+                            [--output-filepath OUTPUT_FILEPATH]
+
+  list all bucket names like provided skeleton
+  
+  options:
+    -h, --help            show this help message and exit
+    --log-level {debug,info,warning,error,critical}
+                          The level of logging output by this program
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+    --like-name LIKE_NAME
+                          skeletal name of buckets to list
+    --output-filepath OUTPUT_FILEPATH
+                          full path of file where names will be written
+
+  ```
+- list_objects_like
+  ```
+  usage: s3-list-objects-like [-h] [--log-level {debug,info,warning,error,critical}] [--aws-profile-name AWS_PROFILE_NAME] [--bucket-name BUCKET_NAME]
+                            [--like-name LIKE_NAME] [--output-filepath OUTPUT_FILEPATH]
+
+  list all object names in named bucket like provided skeleton
+  
+  options:
+    -h, --help            show this help message and exit
+    --log-level {debug,info,warning,error,critical}
+                          The level of logging output by this program
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+    --bucket-name BUCKET_NAME
+                          Name of bucket in which to search
+    --like-name LIKE_NAME
+                          skeletal name of objects to list
+    --output-filepath OUTPUT_FILEPATH
+                          full path of file where bucket/object names will be written
+
+  ```
+- list_urls_like
+  ```
+  usage: s3-list-urls-like [-h] [--log-level {debug,info,warning,error,critical}] [--aws-profile-name AWS_PROFILE_NAME]
+                         [--bucket-like-name BUCKET_LIKE_NAME] [--object-like-name OBJECT_LIKE_NAME] [--output-filepath OUTPUT_FILEPATH]
+
+  list all s3 urls with bucket name like provided skeleton and object name like provided skeleton
+  
+  options:
+    -h, --help            show this help message and exit
+    --log-level {debug,info,warning,error,critical}
+                          The level of logging output by this program
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+    --bucket-like-name BUCKET_LIKE_NAME
+                          skeletal name of buckets to search
+    --object-like-name OBJECT_LIKE_NAME
+                          skeletal name of objects to list
+    --output-filepath OUTPUT_FILEPATH
+                          full path of file where s3://bucket/object names will be written
+
+  ```
 ### s3
 contains an S3 client structured class used to do basic S3 things
 ### util

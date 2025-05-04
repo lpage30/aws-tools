@@ -22,7 +22,7 @@ s3-bucket-download = "cli.s3.bucket_download:main"
 s3-bucket-upload =  "cli.s3.bucket_upload:main"
 s3-list-buckets-like = "cli.s3.list_buckets_like:main"
 s3-list-objects-like = "cli.s3.list_objects_like:main"
-s3-urls-like = "cli.s3.list_urls_like:main"
+s3-list-urls-like = "cli.s3.list_urls_like:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
