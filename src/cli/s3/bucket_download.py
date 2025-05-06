@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--aws-profile-name",
         type=str.lower,
+        required=True,
         help="AWS profile name"
     )
     parser.add_argument(

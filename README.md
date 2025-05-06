@@ -103,10 +103,22 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           full path of file where s3://bucket/object names will be written
 
   ```
+- aws_sso_login
+  ```
+  usage: aws-sso-login [-h] [--aws-profile-name AWS_PROFILE_NAME]
+  
+  aws sso login --profile
+  
+  options:
+    -h, --help            show this help message and exit
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+  ```
 ### s3
 contains an S3 client structured class used to do basic S3 things
 ### util
-- `aws-account-api.py` - contain code that is needed to parse aws-account-name, credentials etc... along with boto3 session
+- `aws_account_-_api.py` - contain code that is needed to parse aws-account-name, credentials etc... along with boto3 session
+- `aws_login.py` - contain code used for logging in
 - logging is simply logging
 
 ## build scripts
