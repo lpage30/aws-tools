@@ -26,14 +26,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--bucket",
         type=str,
-        default=None,
+        required=True,
         help="bucket to upload into",
     )
 
     parser.add_argument(
         "--input-directory",
         type=str,
+        required=True,
         help="directory from which all files will uploaded into bucket",
+    )
+    parser.add_argument(
+        "--no-verify-ssl",
+        action="store_true",
+        default=False,
+        help="use no-verify-ssl with aws call",
     )
 
     args = parser.parse_args()
@@ -50,7 +57,7 @@ def main() -> None:
         sys.exit(1)
     
     try:
-        s3_client = S3Client(boto_session_account)
+        s3_client = S3Client(boto_session_account, args.no_verify_ssl)
     except Exception:
         logger.exception("Unable to instantiate s3 client. %s", args.aws_profile_name)
         sys.exit(1)

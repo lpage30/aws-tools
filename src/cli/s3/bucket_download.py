@@ -26,19 +26,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--bucket",
         type=str,
-        default=None,
+        required=True,
         help="bucket from which to download",
     )
     parser.add_argument(
         "--key-prefix",
         type=str,
-        default='',
+        required=True,
         help="key-prefix of objects to download",
     )
     parser.add_argument(
         "--output-directory",
         type=str,
+        required=True,
         help="directory in which all objects will be downloaded",
+    )
+    parser.add_argument(
+        "--no-verify-ssl",
+        action="store_true",
+        default=False,
+        help="use no-verify-ssl with aws call",
     )
 
     args = parser.parse_args()
@@ -55,24 +62,28 @@ def main() -> None:
         sys.exit(1)
     
     try:
-        s3_client = S3Client(boto_session_account)
+        s3_client = S3Client(boto_session_account, args.no_verify_ssl)
     except Exception:
         logger.exception("Unable to instantiate s3 client. %s", args.aws_profile_name)
         sys.exit(1)
-
     try:
-        s3_keys = s3_client.list_objects(args.bucket, args.key_prefix)
+        s3_bucket = s3_client.get_bucket(args.bucket)
+    except Exception:
+        logger.exception("fetching bucket %s", args.bucket)
+        sys.exit(1)
+    try:
+        s3_objects = s3_client.list_objects(s3_bucket, args.key_prefix)
     except Exception:
         logger.exception("list objects from bucket %s with key prefix %s", args.bucket, args.key_prefix)
         sys.exit(1)
     download_count = 0
-    for key in s3_keys:
-        output_filepath = os.path.join(args.output_directory, key)
+    for s3_object in s3_objects:
+        output_filepath = os.path.join(args.output_directory, s3_object.name)
         try:
-            s3_client.get_object_to_file(args.bucket, key, output_filepath)
+            s3_client.get_object_to_file(args.bucket,  s3_object.name, output_filepath)
             download_count += 1
         except Exception:
             logger.exception("Failed downloading %s/%s to %s", args.bucket, key, output_filepath)
         
-    logger.info("downloaded %d/%d objects to %s", download_count, len(s3_keys), args.output_directory)
+    logger.info("downloaded %d/%d objects to %s", download_count, len(s3_objects), args.output_directory)
 

@@ -1,5 +1,7 @@
 import boto3
 from attrs import define
+from typing import Callable, List
+from util.logging import get_default_logger
 
 @define(auto_attribs=True)
 class AwsAccount:
@@ -11,6 +13,11 @@ class AwsAccount:
 class BotoSessionAwsAccount:
     aws_account: AwsAccount
     boto_session: boto3.session.Session
+
+
+def get_profile_region(profile: str) -> str:
+    return boto3.session.Session(profile_name=profile).region_name
+
 
 def get_boto_session_aws_account(profile: str, region: str|None = None, roleArn: str|None = None) -> BotoSessionAwsAccount:
     if region is None and roleArn is None:
@@ -41,3 +48,18 @@ def get_boto_session_aws_account(profile: str, region: str|None = None, roleArn:
     sts_account_dict = boto_session.client('sts').get_caller_identity()
     aws_account = AwsAccount(name=name, region=boto_session.region_name, id=sts_account_dict['Account'])
     return BotoSessionAwsAccount(aws_account=aws_account, boto_session=boto_session)
+
+
+def call_for_each_region(callback: Callable[[BotoSessionAwsAccount], None], regions: List[str], profile: str, roleArn: str|None = None):
+    logger = get_default_logger()
+    for region in regions:
+        try:
+            boto_session_account = get_boto_session_aws_account(profile, region, roleArn)
+        except Exception:
+            logger.exception(f"Unable to obtain boto session account. {profile}, {region}, {roleArn}")
+            return
+        try:
+            callback(boto_session_account)
+        except Exception:
+            logger.exception(f"Failed calling callback. {profile}, {region}, {roleArn}")
+            return

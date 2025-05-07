@@ -1,9 +1,9 @@
 import argparse
-import sys
+from datetime import datetime, timedelta
 
 from util.logging import get_default_logger, initialize_logging
-from s3.s3_client import S3Client
-from util.aws_account_api import get_boto_session_aws_account
+from s3.s3_client import S3Client, DateRange
+from util.aws_account_api import BotoSessionAwsAccount, call_for_each_region, get_profile_region
 
 logger = get_default_logger()
 
@@ -25,17 +25,41 @@ def parse_args() -> argparse.Namespace:
         help="AWS profile name"
     )
     parser.add_argument(
+        "--regions",
+        nargs="+",
+        default=None,
+        help="list of regions to search"
+    )
+
+    parser.add_argument(
         "--like-name",
         type=str,
-        default=None,
+        required=True,
         help="skeletal name of buckets to list",
+    )
+    parser.add_argument(
+        "--min-age-days",
+        default=0,
+        help="exclude buckets younger than this many days.",
+    )
+    parser.add_argument(
+        "--max-age-days",
+        type=int,
+        help="exclude buckets older than this many days.",
     )
     parser.add_argument(
         "--output-filepath",
         type=str,
-        default=None,
+        required=True,
         help="full path of file where names will be written",
     )
+    parser.add_argument(
+        "--no-verify-ssl",
+        action="store_true",
+        default=False,
+        help="use no-verify-ssl with aws call",
+    )
+
     args = parser.parse_args()
     return args
 
@@ -43,26 +67,33 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     initialize_logging(args.log_level)
+    regions = args.regions if args.regions is not None else [get_profile_region(args.aws_profile_name)]
+    date_range = DateRange()
+    if 0 < args.min_age_days:
+        date_range.end = datetime.today() - timedelta(days=args.min_age_days)
+    if args.max_age_days is not None:
+        date_range.start = datetime.today() - timedelta(days=args.max_age_days)
 
-    try:
-        boto_session_account = get_boto_session_aws_account(args.aws_profile_name)
-    except Exception:
-        logger.exception(f"Unable to obtain boto session account. {args.aws_profile_name}")
-        sys.exit(1)
+    s3_buckets = []
 
-    try:
-        s3_client = S3Client(boto_session_account)
-    except Exception:
-        logger.exception(f"Unable to instantiate s3 client. {args.aws_profile_name}")
-        sys.exit(1)
+    def collect_buckets(session: BotoSessionAwsAccount):
+        try:
+            s3_client = S3Client(session, args.no_verify_ssl)
+        except Exception:
+            logger.exception(f"Unable to instantiate s3 client. {args.aws_profile_name}")
+            return
+        try:
+            s3_buckets.extend(s3_client.list_buckets_like(args.like_name, date_range))
+        except Exception:
+            logger.exception(f"list buckets like {args.like_name} region {session.boto_session.region_name}")
+            return
 
-    try:
-        s3_buckets = s3_client.list_buckets_like(args.like_name)
-    except Exception:
-        logger.exception(f"list buckets like {args.like_name}")
-        sys.exit(1)
 
-    with open(args.output_filepath, 'a+') as of:
-        for name in s3_buckets:
-            of.write(f"{name}\n")
-    logger.info(f"{len(s3_buckets)} bucket names written to {args.output_filepath}")
+    call_for_each_region(lambda session: collect_buckets(session), regions, args.aws_profile_name)
+
+    with open(args.output_filepath, 'a') as of:
+        of.write("[\n")
+        of.write(",\n  ".join([bucket.to_json() for bucket in s3_buckets]))
+        of.write("\n]")
+        
+    logger.info(f"{len(s3_buckets)} bucket names written as JSON to {args.output_filepath}")
