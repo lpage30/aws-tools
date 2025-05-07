@@ -139,7 +139,7 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
 - objects_json_to_url
   ```
   usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] --input-filepath INPUT_FILEPATH
-                                --output-filepath OUTPUT_FILEPATH
+                              [--bucket-url-template BUCKET_URL_TEMPLATE] --output-filepath OUTPUT_FILEPATH
 
   Convert JSON file array of S3 Objects to array of S3 urls
 
@@ -149,6 +149,8 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           The level of logging output by this program
     --input-filepath INPUT_FILEPATH
                           full path of file containing bucket/object JSON
+    --bucket-url-template BUCKET_URL_TEMPLATE
+                          A string containing {region} and {name} to be replace by bucket region and name. ie. http://s3.{region}.amazonaws.com/{name}
     --output-filepath OUTPUT_FILEPATH
                           full path of file where s3://bucket/object names will be written
   ```

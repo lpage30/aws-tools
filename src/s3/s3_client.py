@@ -24,9 +24,8 @@ class S3Bucket:
         self.region = region
         self.created = created
 
-    @property
-    def url(self) -> str:
-        return f"http://s3.{self.region}.amazonaws.com/{self.name}"
+    def to_url(self, bucket_url_template: str) -> str:
+        return bucket_url_template.replace('{region}', self.region).replace('{name}', self.name)
 
     def to_json(self) -> str:
         return json.dumps(self, default=to_dict_value, sort_keys=True, indent=4)
@@ -38,25 +37,37 @@ class S3Bucket:
     @staticmethod
     def from_json(json_str: str) -> "S3Bucket":
         return S3Bucket.from_dict(json.loads(json_str))
+    
+    @staticmethod
+    def is_valid_url_template(bucket_url_template: str) -> bool:
+        return '{region}' in bucket_url_template and '{name}' in bucket_url_template
+
+    @staticmethod
+    def default_bucket_url_template() -> str:
+        return "http://s3.{region}.amazonaws.com/{name}"
+    
+    @staticmethod
+    def bucket_url_template_help() -> str:
+        return "A string containing {region} and {name} to be replace by bucket region and name. ie. " + S3Bucket.default_bucket_url_template()
 
 
 
 class S3Object:
-    def __init__(self, bucket: S3Bucket, name: str, modified: datetime):
+    def __init__(self, bucket: S3Bucket, full_path: List[str], modified: datetime):
         self.bucket = bucket
-        self.name = name
+        self.full_path = full_path
         self.modified = modified
 
-    @property
-    def url(self) -> str:
-        return f"{self.bucket.url}/{self.name}"
+    
+    def to_url(self, bucket_url_template: str) -> str:
+        return f"{self.bucket.to_url(bucket_url_template)}/{'/'.join(self.full_path)}"
 
     def to_json(self) -> str:
         return json.dumps(self, default=to_dict_value, sort_keys=True, indent=4)
 
     @staticmethod
     def from_dict(dict_o: dict) -> "S3Object":
-        return S3Object(bucket=S3Bucket.from_dict(dict_o['bucket']), name=dict_o['name'], created=datetime.fromisoformat(dict_o['modified']))
+        return S3Object(bucket=S3Bucket.from_dict(dict_o['bucket']), full_path=dict_o['full_path'], created=datetime.fromisoformat(dict_o['modified']))
 
     @staticmethod
     def from_json(json_str: str) -> "S3Object":
@@ -110,10 +121,11 @@ class S3Client:
             response = self.__client.list_objects_v2(Bucket=bucket.name) if continuationToken is None else self.__client.list_objects_v2(Bucket=bucket, ContinuationToken=continuationToken)
             continuationToken = response['ContinuationToken'] if 'ContinuationToken' in response else None
             for obj in response['Contents']:
-                if is_match(obj['Key']) is not None:
+                full_path = obj['key'].split('/')
+                if is_match(full_path[-1]) is not None:
                     modified = obj['LastModified']
                     if (date_range.start is None or date_range.start <= modified) and (date_range.end is None or modified <= date_range.end):
-                        result.append(S3Object(bucket=bucket, name=obj['Key'], modified=modified))
+                        result.append(S3Object(bucket=bucket, full_path=full_path, modified=modified))
             if continuationToken is None:
                 break
         return result
@@ -123,7 +135,7 @@ class S3Client:
         result: List[S3Object] = []
         response = self.__client.list_objects_v2(Bucket=bucket.name, Prefix=key_prefix)
         for content in response.get("Contents"):
-            result.append(S3Object(bucket=bucket,name=content.get("Key"), modified=content.get("LastModified")))
+            result.append(S3Object(bucket=bucket, full_path=content.get('key').split('/'), modified=content.get("LastModified")))
         return result
 
     def get_bucket(self, bucket: str, date_range: DateRange=DateRange(start=None,end=None)) -> S3Bucket:
@@ -132,7 +144,7 @@ class S3Client:
 
     def get_object(self, bucket: S3Bucket, key: str) -> S3Object:
         response = self.__client.get_object(Bucket=bucket.name, Key=key)
-        return S3Object(bucket=bucket, name=key, modified=response.get("LastModified"))
+        return S3Object(bucket=bucket, full_path=key.split('/'), modified=response.get("LastModified"))
 
     def get_object_body(self, bucket: str, key: str) -> StreamingBody:
         response = self.__client.get_object(Bucket=bucket.name, Key=key)
