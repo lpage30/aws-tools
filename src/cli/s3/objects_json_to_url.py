@@ -62,7 +62,7 @@ def main() -> None:
                 s3_objects = [S3Object.from_dict(o) for o in data]
 
         if 0 < len(s3_objects):
-            with open(args.output_filepath, 'a+') as outF:
+            with open(args.output_filepath, 'w') as outF:
                 for s3_object in s3_objects:
                     outF.write(f"{s3_object.to_url(args.bucket_url_template)}\n")
             

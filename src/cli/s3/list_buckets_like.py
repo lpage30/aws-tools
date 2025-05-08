@@ -98,7 +98,7 @@ def main() -> None:
 
     call_for_each_region(lambda session: collect_buckets(session), regions, args.aws_profile_name)
 
-    with open(args.output_filepath, 'a') as of:
+    with open(args.output_filepath, 'w') as of:
         json_dump({
             'datetime': datetime.now().isoformat(),
             'args': {
