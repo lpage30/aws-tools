@@ -1,5 +1,5 @@
 import argparse
-import json
+from util.json_helpers import json_load
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import S3Bucket, S3Object
 
@@ -49,11 +49,25 @@ def main() -> None:
     args = parse_args()
     initialize_logging(args.log_level)
     
-    with open(args.input_filepath, 'r') as inF:
-        s3_dict_array = json.load(inF)
+    s3_objects = []
+    logger.info(f"Converting S3 Object definitions in {args.input_filepath} to S3 urls in {args.output_filepath}")
+    try:
+        with open(args.input_filepath, 'r') as inF:
+            data = json_load(inF)
+            if 'result' in data:
+                data = data['result']
+            if 's3_objects' in data:
+                data = data['s3_objects']
+            if isinstance(data, list):
+                s3_objects = [S3Object.from_dict(o) for o in data]
 
-    with open(args.output_filepath, 'a+') as outF:
-        for s3_dict in s3_dict_array:
-            outF.write(f"{S3Object.from_dict(s3_dict).to_url(args.bucket_url_template)}\n")
-    
-    logger.info(f"{len(s3_dict_array)} s3 urls written to {args.output_filepath}")
+        if 0 < len(s3_objects):
+            with open(args.output_filepath, 'a+') as outF:
+                for s3_object in s3_objects:
+                    outF.write(f"{s3_object.to_url(args.bucket_url_template)}\n")
+            
+            logger.info(f"{len(s3_objects)} S3 urls written to {args.output_filepath}")
+        else:
+            logger.warning(f"No S3 objects found to write as urls.")
+    except Exception:
+        logger.exception(f"Failed converting S3 objects in {args.input_filepath} to S3 urls in {args.output_filepath}")

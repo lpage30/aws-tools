@@ -1,6 +1,8 @@
 import argparse
 from datetime import datetime, timedelta
+from util.json_helpers import json_dump
 
+from cli.arg_functions import split_flatten_array_arg
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import S3Client, DateRange
 from util.aws_account_api import BotoSessionAwsAccount, call_for_each_region, get_profile_region
@@ -67,12 +69,14 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     initialize_logging(args.log_level)
-    regions = args.regions if args.regions is not None else [get_profile_region(args.aws_profile_name)]
+    regions = split_flatten_array_arg(args.regions) if args.regions is not None else [get_profile_region(args.aws_profile_name)]
     date_range = DateRange()
     if 0 < args.min_age_days:
         date_range.end = datetime.today() - timedelta(days=args.min_age_days)
     if args.max_age_days is not None:
         date_range.start = datetime.today() - timedelta(days=args.max_age_days)
+
+    logger.info(f"Listing {args.aws_profile_name} sourced buckets where Bucket like {args.like_name} in {date_range} across regions [{','.join(regions)}]")
 
     s3_buckets = []
 
@@ -83,17 +87,31 @@ def main() -> None:
             logger.exception(f"Unable to instantiate s3 client. {args.aws_profile_name}")
             return
         try:
-            s3_buckets.extend(s3_client.list_buckets_like(args.like_name, date_range))
+            s3_region_buckets = s3_client.list_buckets_like(args.like_name, date_range)
         except Exception:
             logger.exception(f"list buckets like {args.like_name} region {session.boto_session.region_name}")
             return
+        s3_buckets.extend(s3_region_buckets)
+        logger.info(f"Collected {len(s3_region_buckets)} buckets in {session.aws_account.region}")
+
 
 
     call_for_each_region(lambda session: collect_buckets(session), regions, args.aws_profile_name)
 
     with open(args.output_filepath, 'a') as of:
-        of.write("[\n")
-        of.write(",\n  ".join([bucket.to_json() for bucket in s3_buckets]))
-        of.write("\n]")
+        json_dump({
+            'datetime': datetime.now().isoformat(),
+            'args': {
+                'profile': args.aws_profile_name,
+                'regions': regions,
+                'bucket_args': {
+                    'like_name': args.bucket_like_name,
+                    'date_range': bucket_date_range.__str__(),
+                },
+            },
+            'result:': {
+                's3_buckets': s3_buckets
+            }
+        }, of)
         
     logger.info(f"{len(s3_buckets)} bucket names written as JSON to {args.output_filepath}")

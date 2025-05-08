@@ -1,22 +1,54 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
-import json
 import re
 from botocore.response import StreamingBody
 from botocore.config import Config
 from util.aws_account_api import BotoSessionAwsAccount
 from typing import List
-from attrs import define
+from util.logging import get_default_logger
 
-@define(auto_attribs=True)
 class DateRange:
-    start: datetime|None
-    end: datetime|None
+    def __init__(self, start: datetime|None = None, end: datetime|None = None):
+        self.start = start
+        self.end = end
 
-def to_dict_value(o):
-    if isinstance(o, datetime):
-        return o.isoformat()
-    return o.__dict__
+    @property
+    def start(self) -> datetime|None:
+        return self._start
+
+    @start.setter
+    def start(self, value: datetime|None) -> None:
+        self._start = value.replace(tzinfo=timezone.utc) if value is not None else None
+
+    @property
+    def end(self) -> datetime|None:
+        return self._end
+
+    @end.setter
+    def end(self, value: datetime|None) -> None:
+        self._end = value.replace(tzinfo=timezone.utc) if value is not None else None
+
+
+    def __str__(self) -> str:
+        if self.start is None and self.end is None:
+            return f"DateRange[any-date]"
+        elif self.start is None:
+            return f"DateRange[before({self.end.isoformat()})]"
+        elif self.end is None:
+            return f"DateRange[after({self.start.isoformat()})]"
+        return f"DateRange[between({self.start.isoformat()},{self.end.isoformat()})]"
+    
+    def in_range(self, dt: datetime) -> bool:
+        if self.start is None and self.end is None:
+            return True
+        utc_dt = dt
+        if dt.tzinfo is None:
+            utc_dt = dt.replace(tzinfo=timezone.utc)
+        if self.start is None:
+            return utc_dt <= self.end
+        if self.end is None:
+            return self.start <= utc_dt
+        return self.start <= utc_dt and utc_dt <= self.end
 
 class S3Bucket:
     def __init__(self, name:str, region: str, created: datetime):
@@ -24,20 +56,16 @@ class S3Bucket:
         self.region = region
         self.created = created
 
+    def __str__(self) -> str:
+        return f"S3Bucket[name={self.name},region={self.region},created={self.created.isoformat()}]"
+    
     def to_url(self, bucket_url_template: str) -> str:
         return bucket_url_template.replace('{region}', self.region).replace('{name}', self.name)
-
-    def to_json(self) -> str:
-        return json.dumps(self, default=to_dict_value, sort_keys=True, indent=4)
-    
+   
     @staticmethod
     def from_dict(dict_o: dict) -> "S3Bucket":
         return S3Bucket(name=dict_o['name'], region=dict_o['region'], created=datetime.fromisoformat(dict_o['created']))
-
-    @staticmethod
-    def from_json(json_str: str) -> "S3Bucket":
-        return S3Bucket.from_dict(json.loads(json_str))
-    
+   
     @staticmethod
     def is_valid_url_template(bucket_url_template: str) -> bool:
         return '{region}' in bucket_url_template and '{name}' in bucket_url_template
@@ -49,47 +77,47 @@ class S3Bucket:
     @staticmethod
     def bucket_url_template_help() -> str:
         return "A string containing {region} and {name} to be replace by bucket region and name. ie. " + S3Bucket.default_bucket_url_template()
-
-
-
+    
 class S3Object:
     def __init__(self, bucket: S3Bucket, full_path: List[str], modified: datetime):
         self.bucket = bucket
         self.full_path = full_path
         self.modified = modified
 
-    
+    def __str__(self) -> str:
+        return f"{self.bucket}.S3Object[name={'/'.join(self.full_path)},modified={self.modified.isoformat()}]"
+
     def to_url(self, bucket_url_template: str) -> str:
         return f"{self.bucket.to_url(bucket_url_template)}/{'/'.join(self.full_path)}"
-
-    def to_json(self) -> str:
-        return json.dumps(self, default=to_dict_value, sort_keys=True, indent=4)
 
     @staticmethod
     def from_dict(dict_o: dict) -> "S3Object":
         return S3Object(bucket=S3Bucket.from_dict(dict_o['bucket']), full_path=dict_o['full_path'], created=datetime.fromisoformat(dict_o['modified']))
 
-    @staticmethod
-    def from_json(json_str: str) -> "S3Object":
-        return S3Object.from_dict(json.loads(json_str))
-
-
 
 class S3Client:
     def __init__(self, boto_session: BotoSessionAwsAccount, no_verify_ssl=False) -> None:
-        self.__default_region = boto_session.aws_account.region
-        self.__client = boto_session.boto_session.client(
-                service_name='s3',
-                config=Config(
-                    retries={
-                        'max_attempts': 10,
-                        'mode': 'standard'
-                    }
-                ),
-                verify=not(no_verify_ssl)
-            )
+        logger = get_default_logger()
+        try:
+            self.__default_region = boto_session.aws_account.region
+            self.__client = boto_session.boto_session.client(
+                    service_name='s3',
+                    config=Config(
+                        retries={
+                            'max_attempts': 10,
+                            'mode': 'standard'
+                        }
+                    ),
+                    verify=not(no_verify_ssl)
+                )
+        except Exception:
+            logger.exception(f"Unable to obtain S3 client no-verify-ssl={no_verify_ssl} from {boto_session.aws_account.name}")
+            raise
+        logger.debug(f"Obtained S3 client no-verify-ssl={no_verify_ssl} from {boto_session.aws_account.name}")
+
 
     def list_buckets_like(self, like_name: str, date_range: DateRange=DateRange(start=None,end=None), exact_name_match=False) -> List[S3Bucket]:
+        logger = get_default_logger()
         result: List[S3Bucket] = []
         regex = re.compile(like_name, re.IGNORECASE)
         is_match = lambda name: regex.match(name) is not None
@@ -97,45 +125,78 @@ class S3Client:
             is_match = lambda name: name == like_name
             
         continuationToken: str | None = None
-        while True:
-            response = self.__client.list_buckets() if continuationToken is None else self.__client.list_buckets(ContinuationToken=continuationToken)
-            continuationToken = response['ContinuationToken'] if 'ContinuationToken' in response else None
-            for bucket in response['Buckets']:
-                if is_match(bucket['Name']):
-                    created = bucket['CreationDate']
-                    if (date_range.start is None or date_range.start <= created) and (date_range.end is None or created <= date_range.end):
-                        result.append(S3Bucket(name=bucket['Name'], region=bucket['BucketRegion'], created=created))                        
-            if continuationToken is None:
-                break
+        logger.debug(f"listing buckets named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
+        try:
+            while True:
+                try:
+                    response = self.__client.list_buckets() if continuationToken is None else self.__client.list_buckets(ContinuationToken=continuationToken)
+                    continuationToken = response['ContinuationToken'] if 'ContinuationToken' in response else None
+                    buckets = response['Buckets'] if 'Buckets' in response else []
+                    for bucket in buckets:
+                        if is_match(bucket['Name']):
+                            created = bucket['CreationDate']
+                            region = bucket['BucketRegion'] if 'BucketRegion' in bucket else self.__default_region
+                            if date_range.in_range(created):
+                                result.append(S3Bucket(name=bucket['Name'], region=region, created=created))                        
+                    if continuationToken is None:
+                        break
+                except KeyError:
+                    logger.error(f"KeyError: response={response}")
+                    raise
+        except Exception:
+            logger.exception(f"AWS S3 list_buckets Failed for buckets named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
+            raise
+        logger.debug(f"Obtained {len(result)} buckets named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
         return result
 
     def list_objects_like(self, bucket: S3Bucket, like_name: str, date_range: DateRange=DateRange(start=None,end=None), exact_name_match=False) -> List[S3Object]:
+        logger = get_default_logger()
         result: List[S3Object] = []
         regex = re.compile(like_name, re.IGNORECASE)
         is_match = lambda name: regex.match(name) is not None
         if exact_name_match:
             is_match = lambda name: name == like_name
 
+        logger.debug(f"listing objects for bucket {bucket} where objects named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
         continuationToken: str | None = None
-        while True:
-            response = self.__client.list_objects_v2(Bucket=bucket.name) if continuationToken is None else self.__client.list_objects_v2(Bucket=bucket, ContinuationToken=continuationToken)
-            continuationToken = response['ContinuationToken'] if 'ContinuationToken' in response else None
-            for obj in response['Contents']:
-                full_path = obj['key'].split('/')
-                if is_match(full_path[-1]) is not None:
-                    modified = obj['LastModified']
-                    if (date_range.start is None or date_range.start <= modified) and (date_range.end is None or modified <= date_range.end):
-                        result.append(S3Object(bucket=bucket, full_path=full_path, modified=modified))
-            if continuationToken is None:
-                break
+        try:
+            while True:
+                try:
+                    response = self.__client.list_objects_v2(Bucket=bucket.name) if continuationToken is None else self.__client.list_objects_v2(Bucket=bucket, ContinuationToken=continuationToken)
+                    continuationToken = response['ContinuationToken'] if 'ContinuationToken' in response else None
+                    contents = response['Contents'] if 'Contents' in response else []
+                    for obj in contents:
+                        full_path = obj['Key'].split('/')
+                        if is_match(full_path[-1]) is not None:
+                            modified = obj['LastModified']
+                            if date_range.in_range(modified):
+                                result.append(S3Object(bucket=bucket, full_path=full_path, modified=modified))
+                    if continuationToken is None:
+                        break
+                except KeyError:
+                    logger.error(f"KeyError: response={response}")
+                    raise
+        except Exception:
+            logger.exception(f"AWS S3 list_objects_v2 Failed for bucket {bucket} and objects named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
+            raise
+        logger.debug(f"Obtained {len(result)} objects for bucket {bucket} where objects named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
         return result
 
 
     def list_objects(self, bucket: S3Bucket, key_prefix: str) -> List[S3Object]:
+        logger = get_default_logger()
+       
         result: List[S3Object] = []
-        response = self.__client.list_objects_v2(Bucket=bucket.name, Prefix=key_prefix)
-        for content in response.get("Contents"):
-            result.append(S3Object(bucket=bucket, full_path=content.get('key').split('/'), modified=content.get("LastModified")))
+        logger.debug(f"listing objects for bucket {bucket} where objects have prefix {key_prefix}")
+        try:
+            response = self.__client.list_objects_v2(Bucket=bucket.name, Prefix=key_prefix)
+            contents = response['Contents'] if 'Contents' in response else []
+            for content in contents:
+                result.append(S3Object(bucket=bucket, full_path=content.get('Key').split('/'), modified=content.get("LastModified")))
+        except Exception:
+            logger.exception(f"AWS S3 list_objects_v2 Failed for bucket {bucket} where objects have prefix {key_prefix}")
+            raise
+        logger.debug(f"Obtained {len(result)} objects for bucket {bucket} where objects have prefix {key_prefix}")
         return result
 
     def get_bucket(self, bucket: str, date_range: DateRange=DateRange(start=None,end=None)) -> S3Bucket:
@@ -158,14 +219,14 @@ class S3Client:
         return S3Bucket(name=bucket, region=self.__default_region, created=datetime.now())
 
     def put_object(self, bucket: str, key: str, data: BytesIO ) -> str:
-        response = self.__client.put_object(Bucket=bucket, key=key, Body=data)
+        response = self.__client.put_object(Bucket=bucket, Key=key, Body=data)
         return response.get("VersionId")
     
     def put_object_from_file(self, bucket: str, key: str, input_filepath: str) -> None:
         self.__client.upload_file(Bucket=bucket,Key=key,Filename=input_filepath)
 
     def delete_object(self, bucket: str, key: str) -> str:
-        response = self.__client.delete_object(Bucket=bucket, key=key)
+        response = self.__client.delete_object(Bucket=bucket, Key=key)
         return response.get("VersionId")
 
     def delete_bucket(self, bucket: str) -> None:

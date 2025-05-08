@@ -1,6 +1,8 @@
 import argparse
 from datetime import datetime, timedelta
+from util.json_helpers import json_dump
 
+from cli.arg_functions import split_flatten_array_arg
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import S3Client, DateRange
 from util.aws_account_api import BotoSessionAwsAccount, call_for_each_region, get_profile_region
@@ -83,7 +85,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     initialize_logging(args.log_level)
-    regions = args.regions if args.regions is not None else [get_profile_region(args.aws_profile_name)]
+    regions = split_flatten_array_arg(args.regions) if args.regions is not None else [get_profile_region(args.aws_profile_name)]
     bucket_date_range = DateRange()
     if 0 < args.bucket_min_age_days:
         bucket_date_range.end = datetime.today() - timedelta(days=args.bucket_min_age_days)
@@ -92,14 +94,14 @@ def main() -> None:
 
     object_date_range = DateRange()
     if 0 < args.object_min_age_days:
-        object_date_range.end = datetime.today() - timedelta(days=args.object_min_age_days)
+        object_date_range.end = (datetime.today() - timedelta(days=args.object_min_age_days))
     if args.object_max_age_days is not None:
-        object_date_range.start = datetime.today() - timedelta(days=args.object_max_age_days)
+        object_date_range.start = (datetime.today() - timedelta(days=args.object_max_age_days))
 
-
+    logger.info(f"Listing {args.aws_profile_name} sourced objects where Bucket like {args.bucket_like_name} in {bucket_date_range} and object like {args.object_like_name} in {object_date_range} across regions [{','.join(regions)}]")
     s3_objects = []
 
-    def collect_urls(session: BotoSessionAwsAccount):
+    def collect_objects(session: BotoSessionAwsAccount):
         try:
             s3_client = S3Client(session, args.no_verify_ssl)
         except Exception:
@@ -110,17 +112,36 @@ def main() -> None:
         except Exception:
             logger.exception(f"list buckets like {args.bucket_like_name} region {session.boto_session.region_name}")
             return
+        s3_region_objects = []
         for s3_bucket in s3_buckets:
             try:
-                s3_objects.extend(s3_client.list_objects_like(s3_bucket, args.object_like_name, object_date_range))
+                s3_region_objects.extend(s3_client.list_objects_like(s3_bucket, args.object_like_name, object_date_range))
             except Exception:
                 logger.exception(f"list objects in {s3_bucket.name} ({session.aws_account.region}) like {args.object_like_name}")
+                return
+        s3_objects.extend(s3_region_objects)
+        logger.info(f"Collected {len(s3_region_objects)} objects across {len(s3_buckets)} buckets in {session.aws_account.region}")
 
-    call_for_each_region(lambda session: collect_urls(session), regions, args.aws_profile_name)
+    call_for_each_region(lambda session: collect_objects(session), regions, args.aws_profile_name)
     
     with open(args.output_filepath, 'a+') as of:
-        of.write("[\n")
-        of.write(",\n  ".join([obj.to_json() for obj in s3_objects]))
-        of.write("\n]")
+        json_dump({
+            'datetime': datetime.now().isoformat(),
+            'args': {
+                'profile': args.aws_profile_name,
+                'regions': regions,
+                'bucket_args': {
+                    'like_name': args.bucket_like_name,
+                    'date_range': bucket_date_range.__str__(),
+                },
+                'object_args': {
+                    'like_name': args.object_like_name,
+                    'date_range': object_date_range.__str__(),
+                }
+            },
+            'result:': {
+                's3_objects': s3_objects
+            }
+        }, of)
 
     logger.info(f"{len(s3_objects)} bucket/object names written as JSON to {args.output_filepath}")

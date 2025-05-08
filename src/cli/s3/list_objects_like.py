@@ -1,6 +1,8 @@
 import argparse
 from datetime import datetime, timedelta
+from util.json_helpers import json_dump
 
+from cli.arg_functions import split_flatten_array_arg
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import S3Client, DateRange
 from util.aws_account_api import BotoSessionAwsAccount, call_for_each_region, get_profile_region
@@ -72,13 +74,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     initialize_logging(args.log_level)
-    regions = args.regions if args.regions is not None else [get_profile_region(args.aws_profile_name)]
+    regions = split_flatten_array_arg(args.regions) if args.regions is not None else [get_profile_region(args.aws_profile_name)]
     date_range = DateRange()
     if 0 < args.min_age_days:
         date_range.end = datetime.today() - timedelta(days=args.min_age_days)
     if args.max_age_days is not None:
         date_range.start = datetime.today() - timedelta(days=args.max_age_days)
 
+    logger.info(f"Listing {args.aws_profile_name} sourced objects where Bucket is {args.bucket_name}  and object like {args.like_name} in {date_range} across regions [{','.join(regions)}]")
+    
     s3_objects = []
 
     def collect_objects(session: BotoSessionAwsAccount):
@@ -94,16 +98,35 @@ def main() -> None:
             return
 
         try:
-            s3_objects.extend(s3_client.list_objects_like(s3_bucket, args.object_like_name, date_range))
+            s3_region_objects = s3_client.list_objects_like(s3_bucket, args.like_name, date_range)
         except Exception:
-            logger.exception(f"list objects in {args.bucket_name} ({session.aws_account.region}) like {args.object_like_name}")
+            logger.exception(f"list objects in {args.bucket_name} ({session.aws_account.region}) like {args.like_name}")
+            return
+        s3_objects.extend(s3_region_objects)
+        logger.info(f"Collected {len(s3_region_objects)} objects from {s3_bucket} in {session.aws_account.region}")
+ 
 
     call_for_each_region(lambda session: collect_objects(session), regions, args.aws_profile_name)
 
 
     with open(args.output_filepath, 'a+') as of:
-        of.write("[\n")
-        of.write(",\n  ".join([obj.to_json() for obj in s3_objects]))
-        of.write("\n]")
+        json_dump({
+            'datetime': datetime.now().isoformat(),
+            'args': {
+                'profile': args.aws_profile_name,
+                'regions': regions,
+                'bucket_args': {
+                    'name': args.bucket_name
+                },
+                'object_args': {
+                    'like_name':  args.like_name,
+                    'date_range': date_range.__str__(),
+                }
+
+            },
+            'result:': {
+                's3_objects': s3_objects
+            }
+        }, of)        
 
     logger.info(f"{len(s3_objects)} bucket/object names written as JSON to {args.output_filepath}")
