@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime, timedelta
 from util.json_helpers import json_dump
 
-from cli.arg_functions import split_flatten_array_arg
+from cli.arg_functions import split_flatten_array_arg, datetime_from_string
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import S3Client, DateRange
 from util.aws_account_api import BotoSessionAwsAccount, call_for_each_region, get_profile_region
@@ -50,6 +50,18 @@ def parse_args() -> argparse.Namespace:
         help="exclude buckets older than this many days.",
     )
     parser.add_argument(
+        "--after-date",
+        type=datetime_from_string,
+        help="include buckets created on or after this date",
+    )
+
+    parser.add_argument(
+        "--before-date",
+        type=datetime_from_string,
+        help="include buckets created on or before this date",
+    )
+
+    parser.add_argument(
         "--output-filepath",
         type=str,
         required=True,
@@ -75,6 +87,14 @@ def main() -> None:
         date_range.end = datetime.today() - timedelta(days=args.min_age_days)
     if args.max_age_days is not None:
         date_range.start = datetime.today() - timedelta(days=args.max_age_days)
+
+    if args.after_date is not None:
+        if date_range.start is None or date_range.start < args.after_date:
+            date_range.start = args.after_date
+
+    if args.before_date is not None:
+        if date_range.end is None or args.before_date < date_range.end:
+            date_range.end = args.before_date
 
     logger.info(f"Listing {args.aws_profile_name} sourced buckets where Bucket like {args.like_name} in {date_range} across regions [{','.join(regions)}]")
 

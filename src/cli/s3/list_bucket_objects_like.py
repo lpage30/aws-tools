@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime, timedelta
 from util.json_helpers import json_dump
 
-from cli.arg_functions import split_flatten_array_arg
+from cli.arg_functions import split_flatten_array_arg, datetime_from_string
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import S3Client, DateRange
 from util.aws_account_api import BotoSessionAwsAccount, call_for_each_region, get_profile_region
@@ -48,6 +48,17 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="exclude buckets older than this many days.",
     )
+    parser.add_argument(
+        "--bucket-after-date",
+        type=datetime_from_string,
+        help="include buckets created on or after this date",
+    )
+
+    parser.add_argument(
+        "--bucket-before-date",
+        type=datetime_from_string,
+        help="include buckets created on or before this date",
+    )
 
     parser.add_argument(
         "--object-like-name",
@@ -65,6 +76,19 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="exclude objects older than this many days.",
     )
+
+    parser.add_argument(
+        "--object-after-date",
+        type=datetime_from_string,
+        help="include objects modified on or after this date",
+    )
+
+    parser.add_argument(
+        "--object-before-date",
+        type=datetime_from_string,
+        help="include objects modified on or before this date",
+    )
+
     parser.add_argument(
         "--output-filepath",
         type=str,
@@ -92,11 +116,27 @@ def main() -> None:
     if args.bucket_max_age_days is not None:
         bucket_date_range.start = datetime.today() - timedelta(days=args.bucket_max_age_days)
 
+    if args.bucket_after_date is not None:
+        if bucket_date_range.start is None or bucket_date_range.start < args.bucket_after_date:
+            bucket_date_range.start = args.bucket_after_date
+
+    if args.bucket_before_date is not None:
+        if bucket_date_range.end is None or args.bucket_before_date < bucket_date_range.end:
+            bucket_date_range.end = args.bucket_before_date
+
     object_date_range = DateRange()
     if 0 < args.object_min_age_days:
         object_date_range.end = (datetime.today() - timedelta(days=args.object_min_age_days))
     if args.object_max_age_days is not None:
         object_date_range.start = (datetime.today() - timedelta(days=args.object_max_age_days))
+
+    if args.object_after_date is not None:
+        if object_date_range.start is None or object_date_range.start < args.object_after_date:
+            object_date_range.start = args.object_after_date
+
+    if args.object_before_date is not None:
+        if object_date_range.end is None or args.object_before_date < object_date_range.end:
+            object_date_range.end = args.object_before_date
 
     logger.info(f"Listing {args.aws_profile_name} sourced objects where Bucket like {args.bucket_like_name} in {bucket_date_range} and object like {args.object_like_name} in {object_date_range} across regions [{','.join(regions)}]")
     s3_objects = []

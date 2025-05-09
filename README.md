@@ -47,9 +47,9 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
   ```
 - list_buckets_like
   ```
-  usage: s3-list-buckets-like [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME
-                              [--regions REGIONS [REGIONS ...]] --like-name LIKE_NAME [--min-age-days MIN_AGE_DAYS]
-                              [--max-age-days MAX_AGE_DAYS] --output-filepath OUTPUT_FILEPATH [--no-verify-ssl]
+  usage: s3-list-buckets-like [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME [--regions REGIONS [REGIONS ...]]
+                            --like-name LIKE_NAME [--min-age-days MIN_AGE_DAYS] [--max-age-days MAX_AGE_DAYS] [--after-date AFTER_DATE] [--before-date BEFORE_DATE]
+                            --output-filepath OUTPUT_FILEPATH [--no-verify-ssl]
 
   list all bucket names like provided skeleton
 
@@ -67,16 +67,19 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           exclude buckets younger than this many days.
     --max-age-days MAX_AGE_DAYS
                           exclude buckets older than this many days.
+    --after-date AFTER_DATE
+                          include buckets created on or after this date
+    --before-date BEFORE_DATE
+                          include buckets created on or before this date
     --output-filepath OUTPUT_FILEPATH
                           full path of file where names will be written
     --no-verify-ssl       use no-verify-ssl with aws call
   ```
 - list_objects_like
   ```
-  usage: s3-list-objects-like [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME
-                              [--regions REGIONS [REGIONS ...]] --bucket-name BUCKET_NAME --like-name LIKE_NAME
-                              [--min-age-days MIN_AGE_DAYS] [--max-age-days MAX_AGE_DAYS] --output-filepath
-                              OUTPUT_FILEPATH [--no-verify-ssl]
+  usage: s3-list-objects-like [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME [--regions REGIONS [REGIONS ...]]
+                            --bucket-name BUCKET_NAME --like-name LIKE_NAME [--min-age-days MIN_AGE_DAYS] [--max-age-days MAX_AGE_DAYS] [--after-date AFTER_DATE]
+                            [--before-date BEFORE_DATE] --output-filepath OUTPUT_FILEPATH [--no-verify-ssl]
 
   list all object names in named bucket like provided skeleton
 
@@ -96,19 +99,21 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           exclude objects younger than this many days.
     --max-age-days MAX_AGE_DAYS
                           exclude objects older than this many days.
+    --after-date AFTER_DATE
+                          include objects modified on or after this date
+    --before-date BEFORE_DATE
+                          include objects modified on or before this date
     --output-filepath OUTPUT_FILEPATH
                           full path of file where bucket/object JSON will be written
     --no-verify-ssl       use no-verify-ssl with aws call
   ```
 - list_bucket_objects_like
   ```
-  usage: s3-list-bucket-objects-like [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name
-                                    AWS_PROFILE_NAME [--regions REGIONS [REGIONS ...]] --bucket-like-name
-                                    BUCKET_LIKE_NAME [--bucket-min-age-days BUCKET_MIN_AGE_DAYS]
-                                    [--bucket-max-age-days BUCKET_MAX_AGE_DAYS] --object-like-name OBJECT_LIKE_NAME
-                                    [--object-min-age-days OBJECT_MIN_AGE_DAYS]
-                                    [--object-max-age-days OBJECT_MAX_AGE_DAYS] --output-filepath OUTPUT_FILEPATH
-                                    [--no-verify-ssl]
+  usage: s3-list-bucket-objects-like [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME [--regions REGIONS [REGIONS ...]]
+                                   --bucket-like-name BUCKET_LIKE_NAME [--bucket-min-age-days BUCKET_MIN_AGE_DAYS] [--bucket-max-age-days BUCKET_MAX_AGE_DAYS]
+                                   [--bucket-after-date BUCKET_AFTER_DATE] [--bucket-before-date BUCKET_BEFORE_DATE] --object-like-name OBJECT_LIKE_NAME
+                                   [--object-min-age-days OBJECT_MIN_AGE_DAYS] [--object-max-age-days OBJECT_MAX_AGE_DAYS] [--object-after-date OBJECT_AFTER_DATE]
+                                   [--object-before-date OBJECT_BEFORE_DATE] --output-filepath OUTPUT_FILEPATH [--no-verify-ssl]
 
   list all objects with bucket name like provided skeleton and object name like provided skeleton
 
@@ -126,20 +131,28 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           exclude buckets younger than this many days.
     --bucket-max-age-days BUCKET_MAX_AGE_DAYS
                           exclude buckets older than this many days.
+    --bucket-after-date BUCKET_AFTER_DATE
+                          include buckets created on or after this date
+    --bucket-before-date BUCKET_BEFORE_DATE
+                          include buckets created on or before this date
     --object-like-name OBJECT_LIKE_NAME
                           skeletal name of objects to list
     --object-min-age-days OBJECT_MIN_AGE_DAYS
                           exclude objects younger than this many days.
     --object-max-age-days OBJECT_MAX_AGE_DAYS
                           exclude objects older than this many days.
+    --object-after-date OBJECT_AFTER_DATE
+                          include objects modified on or after this date
+    --object-before-date OBJECT_BEFORE_DATE
+                          include objects modified on or before this date
     --output-filepath OUTPUT_FILEPATH
                           full path of file where bucket/object JSON will be written
     --no-verify-ssl       use no-verify-ssl with aws call
   ```
 - objects_json_to_url
   ```
-  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] --input-filepath INPUT_FILEPATH
-                              [--bucket-url-template BUCKET_URL_TEMPLATE] --output-filepath OUTPUT_FILEPATH
+  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] --input-filepath INPUT_FILEPATH [--bucket-url-template BUCKET_URL_TEMPLATE]
+                              --output-filepath OUTPUT_FILEPATH
 
   Convert JSON file array of S3 Objects to array of S3 urls
 
@@ -156,14 +169,15 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
   ```
 - aws_sso_login
   ```
-  usage: aws-sso-login [-h] [--aws-profile-name AWS_PROFILE_NAME]
-  
+  usage: aws-sso-login [-h] --aws-profile-name AWS_PROFILE_NAME
+
   aws sso login --profile
-  
+
   options:
     -h, --help            show this help message and exit
     --aws-profile-name AWS_PROFILE_NAME
                           AWS profile name
+  (3.13.2) larry@Larrys-MacBook-Pro aws-tools %
   ```
 ### s3
 contains an S3 client structured class used to do basic S3 things
@@ -171,6 +185,7 @@ contains an S3 client structured class used to do basic S3 things
 - `aws_account_-_api.py` - contain code that is needed to parse aws-account-name, credentials etc... along with boto3 session
 - `aws_login.py` - contain code used for logging in
 - logging is simply logging
+- `json_helpers.py` read/write jsont with datetme objects
 
 ## build scripts
 Scripts were created in both bash and batch so as to work in windows or linux-based systems
