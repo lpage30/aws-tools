@@ -81,7 +81,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     initialize_logging(args.log_level)
-    regions = split_flatten_array_arg(args.regions) if args.regions is not None else [get_profile_region(args.aws_profile_name)]
+    regions = split_flatten_array_arg(args.regions) if args.regions is not None and 0 < len(args.regions) else [get_profile_region(args.aws_profile_name)]
     date_range = DateRange()
     if 0 < args.min_age_days:
         date_range.end = datetime.today() - timedelta(days=args.min_age_days)

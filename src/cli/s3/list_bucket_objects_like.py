@@ -109,6 +109,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     initialize_logging(args.log_level)
+    logger.info(f"args.regions({args.regions}) profileRegion({get_profile_region(args.aws_profile_name)})")
     regions = split_flatten_array_arg(args.regions) if args.regions is not None else [get_profile_region(args.aws_profile_name)]
     bucket_date_range = DateRange()
     if 0 < args.bucket_min_age_days:
