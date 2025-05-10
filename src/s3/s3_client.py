@@ -5,6 +5,7 @@ from botocore.response import StreamingBody
 from botocore.config import Config
 from util.aws_account_api import BotoSessionAwsAccount
 from typing import List
+import urllib
 from util.logging import get_default_logger
 
 class DateRange:
@@ -110,7 +111,14 @@ class S3URL:
     
     @staticmethod
     def is_valid_url_template(s3_url_template: str) -> bool:
-        return '{bucket_name}' in s3_url_template and '{object_full_path}' in s3_url_template
+        bucket_name = 'BUCKET_NAME'
+        region = 'REGION'
+        object_full_path = 'OBJECT/FULL/PATH'
+        try:
+            urllib.parse(s3_url_template.format(region=region, bucket_name=bucket_name, object_full_path = object_full_path))
+            return True
+        except:
+            return False
 
     @staticmethod
     def template_help() -> str:
