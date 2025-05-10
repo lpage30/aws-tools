@@ -147,7 +147,7 @@ def main() -> None:
                 }
 
             },
-            'result:': {
+            'result': {
                 's3_objects': s3_objects
             }
         }, of)        

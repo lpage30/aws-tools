@@ -78,20 +78,24 @@ class S3Object:
         self.full_path = full_path
         self.modified = modified
         self.size = size
-
+    
+    @property
+    def fully_qualified_name(self) -> str:
+        return f"{self.bucket.name}/{'/'.join(self.full_path)}"
+    
     def __str__(self) -> str:
         return f"{self.bucket}.S3Object[name={'/'.join(self.full_path)},modified={self.modified.isoformat()},size={self.size}]"
 
     def __lt__(self, other) -> bool:
         if self.modified.__eq__(other.modified):
-            if self.name.__eq__(other.name):
+            if self.fully_qualified_name.__eq__(other.fully_qualified_name):
                 return self.size.__lt__(other.size)
-            return self.name.__lt__(other.name)
+            return self.fully_qualified_name.__lt__(other.fully_qualified_name)
         return self.modified.__lt__(other.modified)
 
     @staticmethod
     def from_dict(dict_o: dict) -> "S3Object":
-        return S3Object(bucket=S3Bucket.from_dict(dict_o['bucket']), full_path=dict_o['full_path'], created=datetime.fromisoformat(dict_o['modified']), size=dict_o['size'])
+        return S3Object(bucket=S3Bucket.from_dict(dict_o['bucket']), full_path=dict_o['full_path'], modified=datetime.fromisoformat(dict_o['modified']), size=dict_o['size'])
 
 class S3URL:
     def __init__(self, s3_url_template: str | None = None):
@@ -181,7 +185,8 @@ class S3Client:
             logger.exception(f"AWS S3 list_buckets Failed for buckets named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
             raise
         logger.debug(f"Obtained {len(result)} buckets named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
-        return result.sort(reverse=True)
+        return result
+
 
     def list_objects_like(self, bucket: S3Bucket, like_name: str, date_range: DateRange=DateRange(start=None,end=None), exact_name_match=False) -> List[S3Object]:
         logger = get_default_logger()
@@ -204,7 +209,8 @@ class S3Client:
                         if is_match(full_path[-1]) is not None:
                             modified = obj['LastModified']
                             if date_range.in_range(modified):
-                                result.append(S3Object(bucket=bucket, full_path=full_path, modified=modified))
+                                size = obj['Size']
+                                result.append(S3Object(bucket=bucket, full_path=full_path, modified=modified, size=size))
                     if continuationToken is None:
                         break
                 except KeyError:
@@ -214,7 +220,7 @@ class S3Client:
             logger.exception(f"AWS S3 list_objects_v2 Failed for bucket {bucket} and objects named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
             raise
         logger.debug(f"Obtained {len(result)} objects for bucket {bucket} where objects named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
-        return result.sort(reverse=True)
+        return result
 
 
     def list_objects(self, bucket: S3Bucket, key_prefix: str) -> List[S3Object]:
@@ -226,12 +232,12 @@ class S3Client:
             response = self.__client.list_objects_v2(Bucket=bucket.name, Prefix=key_prefix)
             contents = response['Contents'] if 'Contents' in response else []
             for content in contents:
-                result.append(S3Object(bucket=bucket, full_path=content.get('Key').split('/'), modified=content.get("LastModified")))
+                result.append(S3Object(bucket=bucket, full_path=content['Key'].split('/'), modified=content['LastModified'], size=content['Size']))
         except Exception:
             logger.exception(f"AWS S3 list_objects_v2 Failed for bucket {bucket} where objects have prefix {key_prefix}")
             raise
         logger.debug(f"Obtained {len(result)} objects for bucket {bucket} where objects have prefix {key_prefix}")
-        return result.sort(reverse=True)
+        return result
 
     def get_bucket(self, bucket: str, date_range: DateRange=DateRange(start=None,end=None)) -> S3Bucket:
         buckets = self.list_buckets_like(bucket, date_range, True)
@@ -239,7 +245,7 @@ class S3Client:
 
     def get_object(self, bucket: S3Bucket, key: str) -> S3Object:
         response = self.__client.get_object(Bucket=bucket.name, Key=key)
-        return S3Object(bucket=bucket, full_path=key.split('/'), modified=response.get("LastModified"))
+        return S3Object(bucket=bucket, full_path=key.split('/'), modified=response['LastModified'], size=response['Size'])
 
     def get_object_body(self, bucket: str, key: str) -> StreamingBody:
         response = self.__client.get_object(Bucket=bucket.name, Key=key)

@@ -55,7 +55,7 @@ def main() -> None:
     url_formatter = S3URL(args.s3_url_template)
     s3_objects = []
     s3_url_datetime = None
-    logger.info(f"Converting S3 Object definitions in {args.input_filepath} to S3 urls in {args.output_filepath}")
+    logger.info(f"Loading S3 Object definitions from {args.input_filepath}")
     try:
         with open(args.input_filepath, 'r') as inF:
             data = json_load(inF)
@@ -63,11 +63,15 @@ def main() -> None:
                 s3_url_datetime = data['datetime']
             if 'result' in data:
                 data = data['result']
+                logger.info(f"1) result")
             if 's3_objects' in data:
                 data = data['s3_objects']
             if isinstance(data, list):
                 s3_objects = [S3Object.from_dict(o) for o in data]
+            else:
+                raise TypeError(f"Data not type list. {args.input_filepath}")
         
+        logger.info(f"Converting {len(s3_objects)} S3 Objects to {len(s3_objects)} urls of form {args.s3_url_template}")
         s3_urls = [
             { 
                 'url': url_formatter.to_url(o),
@@ -75,13 +79,15 @@ def main() -> None:
                 'size': o.size
             } for o in s3_objects
         ]
+        logger.debug(f"Writing {len(s3_urls)} urls to {args.output_filepath}")
         with open(args.output_filepath, 'w') as of:
             json_dump({
                 'datetime': s3_url_datetime,
                 'args': {
                     'input_filepath': args.input_filepath,
+                    's3_url_template': args.s3_url_template
                 },
-                'result:': {
+                'result': {
                     's3_urls': s3_urls
                 }
             }, of)

@@ -120,7 +120,7 @@ def main() -> None:
 
 
     call_for_each_region(lambda session: collect_buckets(session), regions, args.aws_profile_name)
-
+    s3_buckets.sort(reverse=True)
     with open(args.output_filepath, 'w') as of:
         json_dump({
             'datetime': datetime.now().isoformat(),
@@ -128,11 +128,11 @@ def main() -> None:
                 'profile': args.aws_profile_name,
                 'regions': regions,
                 'bucket_args': {
-                    'like_name': args.bucket_like_name,
-                    'date_range': bucket_date_range.__str__(),
+                    'like_name': args.like_name,
+                    'date_range': date_range.__str__(),
                 },
             },
-            'result:': {
+            'result': {
                 's3_buckets': s3_buckets
             }
         }, of)

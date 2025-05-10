@@ -167,6 +167,8 @@ def main() -> None:
 
     call_for_each_region(lambda session: collect_objects(session), regions, args.aws_profile_name)
     
+    s3_objects.sort(reverse=True)
+
     with open(args.output_filepath, 'w') as of:
         json_dump({
             'datetime': datetime.now().isoformat(),
@@ -182,7 +184,7 @@ def main() -> None:
                     'date_range': object_date_range.__str__(),
                 }
             },
-            'result:': {
+            'result': {
                 's3_objects': s3_objects
             }
         }, of)
