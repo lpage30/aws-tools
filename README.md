@@ -8,9 +8,8 @@ provide a cli command set for aws api. Initial approach is s3
 contains 1 file per cli command. setup.py contains hooks to these cli commands
 - bucket_download 
   ```
-  usage: s3-bucket-download [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME
-                            --bucket BUCKET --key-prefix KEY_PREFIX --output-directory OUTPUT_DIRECTORY
-                            [--no-verify-ssl]
+  usage: s3-bucket-download [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME --bucket BUCKET --key-prefix KEY_PREFIX
+                          --output-directory OUTPUT_DIRECTORY [--no-verify-ssl]
 
   Export bucket records to csv.
 
@@ -25,12 +24,12 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           key-prefix of objects to download
     --output-directory OUTPUT_DIRECTORY
                           directory in which all objects will be downloaded
-    --no-verify-ssl       use no-verify-ssl with aws call  
+    --no-verify-ssl       use no-verify-ssl with aws call
   ```
 - bucket_upload 
   ```
-  usage: s3-bucket-upload [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME
-                          --bucket BUCKET --input-directory INPUT_DIRECTORY [--no-verify-ssl]
+  usage: s3-bucket-upload [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME --bucket BUCKET --input-directory INPUT_DIRECTORY
+                        [--no-verify-ssl]
 
   Import csv records to bucket.
 
@@ -151,7 +150,7 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
   ```
 - objects_json_to_url
   ```
-  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] --input-filepath INPUT_FILEPATH [--bucket-url-template BUCKET_URL_TEMPLATE]
+  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] --input-filepath INPUT_FILEPATH [--s3-url-template S3_URL_TEMPLATE]
                               --output-filepath OUTPUT_FILEPATH
 
   Convert JSON file array of S3 Objects to array of S3 urls
@@ -162,8 +161,12 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           The level of logging output by this program
     --input-filepath INPUT_FILEPATH
                           full path of file containing bucket/object JSON
-    --bucket-url-template BUCKET_URL_TEMPLATE
-                          A string containing {region} and {name} to be replace by bucket region and name. ie. http://s3.{region}.amazonaws.com/{name}
+    --s3-url-template S3_URL_TEMPLATE
+                          A string containing fields expressed within '{}': {region}, {bucket_name}, {object_full_path}
+                          ie. http://s3.{region}.amazonaws.com/{bucket_name}/{object_full_path}
+                          {region} - region in which bucket was found
+                          {bucket_name} - name of bucket for object
+                          {object_full_path} - full path of object in bucket ie. folder/subfolder/object_name, or, if no folder, object_name
     --output-filepath OUTPUT_FILEPATH
                           full path of file where s3://bucket/object names will be written
   ```

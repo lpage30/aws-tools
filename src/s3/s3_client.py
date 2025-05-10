@@ -59,41 +59,67 @@ class S3Bucket:
     def __str__(self) -> str:
         return f"S3Bucket[name={self.name},region={self.region},created={self.created.isoformat()}]"
     
+    def __lt__(self, other) -> bool:
+        if self.created.__eq__(other.created):
+            return self.name.__lt__(other.name)
+        return self.created.__lt__(other.created)
+    
     def to_url(self, bucket_url_template: str) -> str:
         return bucket_url_template.replace('{region}', self.region).replace('{name}', self.name)
    
     @staticmethod
     def from_dict(dict_o: dict) -> "S3Bucket":
         return S3Bucket(name=dict_o['name'], region=dict_o['region'], created=datetime.fromisoformat(dict_o['created']))
-   
-    @staticmethod
-    def is_valid_url_template(bucket_url_template: str) -> bool:
-        return '{region}' in bucket_url_template and '{name}' in bucket_url_template
-
-    @staticmethod
-    def default_bucket_url_template() -> str:
-        return "http://s3.{region}.amazonaws.com/{name}"
-    
-    @staticmethod
-    def bucket_url_template_help() -> str:
-        return "A string containing {region} and {name} to be replace by bucket region and name. ie. " + S3Bucket.default_bucket_url_template()
-    
+ 
 class S3Object:
-    def __init__(self, bucket: S3Bucket, full_path: List[str], modified: datetime):
+    def __init__(self, bucket: S3Bucket, full_path: List[str], modified: datetime, size: int):
         self.bucket = bucket
         self.full_path = full_path
         self.modified = modified
+        self.size = size
 
     def __str__(self) -> str:
-        return f"{self.bucket}.S3Object[name={'/'.join(self.full_path)},modified={self.modified.isoformat()}]"
+        return f"{self.bucket}.S3Object[name={'/'.join(self.full_path)},modified={self.modified.isoformat()},size={self.size}]"
 
-    def to_url(self, bucket_url_template: str) -> str:
-        return f"{self.bucket.to_url(bucket_url_template)}/{'/'.join(self.full_path)}"
+    def __lt__(self, other) -> bool:
+        if self.modified.__eq__(other.modified):
+            if self.name.__eq__(other.name):
+                return self.size.__lt__(other.size)
+            return self.name.__lt__(other.name)
+        return self.modified.__lt__(other.modified)
 
     @staticmethod
     def from_dict(dict_o: dict) -> "S3Object":
-        return S3Object(bucket=S3Bucket.from_dict(dict_o['bucket']), full_path=dict_o['full_path'], created=datetime.fromisoformat(dict_o['modified']))
+        return S3Object(bucket=S3Bucket.from_dict(dict_o['bucket']), full_path=dict_o['full_path'], created=datetime.fromisoformat(dict_o['modified']), size=dict_o['size'])
 
+class S3URL:
+    def __init__(self, s3_url_template: str | None = None):
+        self.s3_url_template = S3URL.default_template()
+        if s3_url_template is not None:
+            self.s3_url_template = s3_url_template
+
+    def to_url(self, s3_object: S3Object) -> str:
+        region = s3_object.bucket.region
+        bucket_name = s3_object.bucket.name
+        object_full_path = '/'.join(s3_object.full_path)
+        return self.s3_url_template.format(region=region, bucket_name=bucket_name, object_full_path = object_full_path)
+    
+    @staticmethod
+    def default_template() -> str:
+        return "http://s3.{region}.amazonaws.com/{bucket_name}/{object_full_path}"
+    
+    @staticmethod
+    def is_valid_url_template(s3_url_template: str) -> bool:
+        return '{bucket_name}' in s3_url_template and '{object_full_path}' in s3_url_template
+
+    @staticmethod
+    def template_help() -> str:
+        return """A string containing fields expressed within '{}': {region}, {bucket_name}, {object_full_path}
+ie. http://s3.{region}.amazonaws.com/{bucket_name}/{object_full_path}
+{region} - region in which bucket was found
+{bucket_name} - name of bucket for object
+{object_full_path} - full path of object in bucket ie. folder/subfolder/object_name, or, if no folder, object_name
+"""
 
 class S3Client:
     def __init__(self, boto_session: BotoSessionAwsAccount, no_verify_ssl=False) -> None:
@@ -147,7 +173,7 @@ class S3Client:
             logger.exception(f"AWS S3 list_buckets Failed for buckets named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
             raise
         logger.debug(f"Obtained {len(result)} buckets named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
-        return result
+        return result.sort(reverse=True)
 
     def list_objects_like(self, bucket: S3Bucket, like_name: str, date_range: DateRange=DateRange(start=None,end=None), exact_name_match=False) -> List[S3Object]:
         logger = get_default_logger()
@@ -180,7 +206,7 @@ class S3Client:
             logger.exception(f"AWS S3 list_objects_v2 Failed for bucket {bucket} and objects named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
             raise
         logger.debug(f"Obtained {len(result)} objects for bucket {bucket} where objects named {'exactly' if exact_name_match else 'like'} {like_name} in {date_range}")
-        return result
+        return result.sort(reverse=True)
 
 
     def list_objects(self, bucket: S3Bucket, key_prefix: str) -> List[S3Object]:
@@ -197,7 +223,7 @@ class S3Client:
             logger.exception(f"AWS S3 list_objects_v2 Failed for bucket {bucket} where objects have prefix {key_prefix}")
             raise
         logger.debug(f"Obtained {len(result)} objects for bucket {bucket} where objects have prefix {key_prefix}")
-        return result
+        return result.sort(reverse=True)
 
     def get_bucket(self, bucket: str, date_range: DateRange=DateRange(start=None,end=None)) -> S3Bucket:
         buckets = self.list_buckets_like(bucket, date_range, True)

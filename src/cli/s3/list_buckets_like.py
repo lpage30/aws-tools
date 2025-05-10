@@ -11,7 +11,10 @@ logger = get_default_logger()
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=f"list all bucket names like provided skeleton")
+    parser = argparse.ArgumentParser(
+        description=f"list all bucket names like provided skeleton",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
 
     parser.add_argument(
         "--log-level",

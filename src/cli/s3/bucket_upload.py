@@ -8,7 +8,10 @@ from util.aws_account_api import get_boto_session_aws_account
 
 logger = get_default_logger()
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=f"Import csv records to bucket.")
+    parser = argparse.ArgumentParser(
+        description=f"Import csv records to bucket.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
 
     parser.add_argument(
         "--log-level",
