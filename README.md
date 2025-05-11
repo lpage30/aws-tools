@@ -150,8 +150,7 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
   ```
 - objects_json_to_url
   ```
-  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] [--top-count TOP_COUNT] --input-filepath INPUT_FILEPATH
-                              [--s3-url-template S3_URL_TEMPLATE] --output-filepath OUTPUT_FILEPATH
+  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] [--top-count TOP_COUNT] --input-filepath INPUT_FILEPATH [--s3-url-template S3_URL_TEMPLATE]
 
   Convert top x S3 Objects s3 urls
 
@@ -169,13 +168,10 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           {region} - region in which bucket was found
                           {bucket_name} - name of bucket for object
                           {object_full_path} - full path of object in bucket ie. folder/subfolder/object_name, or, if no folder, object_name
-    --output-filepath OUTPUT_FILEPATH
-                          full path of file where s3://bucket/object names will be written
   ```
 - download_objects
   ```
-  usage: s3-download-objects [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME [--top-count TOP_COUNT]
-                           --input-filepath INPUT_FILEPATH --output-dirpath OUTPUT_DIRPATH
+  usage: s3-download-objects [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME [--top-count TOP_COUNT] --input-filepath INPUT_FILEPATH [--no-verify-ssl]
 
   Download top X S3 Objects listed in input file to directory
 
@@ -189,8 +185,7 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           download the most recent this many objects.
     --input-filepath INPUT_FILEPATH
                           full path of file containing bucket/object JSON
-    --output-dirpath OUTPUT_DIRPATH
-                          full path of directory under which <bucket-name>(as subdirectory)/<object-name>(as file) will be stored
+    --no-verify-ssl       use no-verify-ssl with aws call
   ```
 - aws_sso_login
   ```

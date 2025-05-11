@@ -1,4 +1,5 @@
 import argparse
+import os
 from util.json_helpers import json_load, json_dump
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import  S3Object, S3URL
@@ -28,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--top-count",
         default=1,
+        type=int,
         help="convert the most recent this many objects."
     )
     parser.add_argument(
@@ -42,12 +44,6 @@ def parse_args() -> argparse.Namespace:
         default=S3URL.default_template(),
         help=S3URL.template_help()
     )
-    parser.add_argument(
-        "--output-filepath",
-        type=str,
-        required=True,
-        help="full path of file where s3://bucket/object names will be written",
-    )
 
     args = parser.parse_args()
     return args
@@ -60,6 +56,7 @@ def main() -> None:
     url_formatter = S3URL(args.s3_url_template)
     s3_objects = []
     s3_url_datetime = None
+    output_dirpath = os.path.dirname(args.input_filepath)
     logger.info(f"Loading S3 Object definitions from {args.input_filepath}")
     try:
         with open(args.input_filepath, 'r') as inF:
@@ -86,8 +83,12 @@ def main() -> None:
                 'url': url_formatter.to_url(s3_object),
                 'metadata': s3_object.__str__()
             })
-        logger.debug(f"Writing {len(s3_urls)} urls to {args.output_filepath}")
-        with open(args.output_filepath, 'w') as of:
+        output_filename = os.path.splitext(os.path.basename(args.input_filepath))
+        output_filename = f"{output_filename[0]}-urls{output_filename[1]}"
+        output_filepath = os.path.join(output_dirpath, output_filename)
+
+        logger.debug(f"Writing {len(s3_urls)} urls to {output_filepath}")
+        with open(output_filepath, 'w') as of:
             json_dump({
                 'datetime': s3_url_datetime,
                 'args': {
@@ -97,10 +98,10 @@ def main() -> None:
                 },
                 'result': {
                     'input_count': len(s3_objects),
-                    'url_count': len(s3_urls),
+                    'output_count': len(s3_urls),
                     's3_urls': s3_urls
                 }
             }, of)
-            logger.info(f"{len(s3_urls)} S3 urls written to {args.output_filepath}")
+            logger.info(f"{len(s3_urls)} S3 urls written to {output_filepath}")
     except Exception:
-        logger.exception(f"Failed converting S3 objects in {args.input_filepath} to S3 urls in {args.output_filepath}")
+        logger.exception(f"Failed converting S3 objects in {args.input_filepath} to S3 urls in {output_filepath}")

@@ -133,7 +133,7 @@ def main() -> None:
                 },
             },
             'result': {
-                'bucket_count': len(s3_buckets),
+                'output_count': len(s3_buckets),
                 's3_buckets': s3_buckets
             }
         }, of)

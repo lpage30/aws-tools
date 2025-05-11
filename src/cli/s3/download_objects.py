@@ -30,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--top-count",
         default=1,
+        type=int,
         help="download the most recent this many objects."
     )
 
@@ -40,10 +41,10 @@ def parse_args() -> argparse.Namespace:
         help="full path of file containing bucket/object JSON",
     )
     parser.add_argument(
-        "--output-dirpath",
-        type=str,
-        required=True,
-        help="full path of directory under which <bucket-name>(as subdirectory)/<object-name>(as file) will be stored",
+        "--no-verify-ssl",
+        action="store_true",
+        default=False,
+        help="use no-verify-ssl with aws call",
     )
 
     args = parser.parse_args()
@@ -56,6 +57,7 @@ def main() -> None:
     
     s3_objects = []
     s3_download_datetime = None
+    output_dirpath = os.path.dirname(args.input_filepath)
     logger.info(f"Loading S3 Object definitions from {args.input_filepath}")
     try:
         with open(args.input_filepath, 'r') as inF:
@@ -75,12 +77,12 @@ def main() -> None:
                 raise TypeError(f"Data not type list. {args.input_filepath}")
         
     except Exception:
-        logger.exception(f"Failed converting S3 objects in {args.input_filepath} to S3 urls in {args.output_filepath}")
+        logger.exception(f"Failed loading S3 objects from {args.input_filepath}")
         return
         
     download_count = min(len(s3_objects), args.top_count)
 
-    logger.info(f"downloading top {download_count}/{len(s3_objects)} S3 Objects to {args.output_dirpath}")
+    logger.info(f"downloading top {download_count}/{len(s3_objects)} S3 Objects to {output_dirpath}")
     s3_downloads = []
     try:
         session = get_boto_session_aws_account(args.aws_profile_name)
@@ -88,7 +90,7 @@ def main() -> None:
         for i in range(download_count):
             s3_object = s3_objects[i]
             output_filename = s3_object.fully_qualified_name.replace('/','.')
-            output_filepath = os.path.join(args.output_dirpath, output_filename)
+            output_filepath = os.path.join(output_dirpath, output_filename)
             try:
                 s3_client.get_object_to_file(s3_object.bucket.name,  s3_object.name, output_filepath)
                 logger.debug(f"{s3_object} downloaded to {output_filepath}")
@@ -99,13 +101,13 @@ def main() -> None:
             except Exception:
                 logger.exception(f"Failed downloading {s3_object.fully_qualified_name} to {output_filepath}")
             
-        logger.info(f"downloaded {download_count}/{len(s3_objects)} objects to {args.output_dirpath}")
+        logger.info(f"downloaded {download_count}/{len(s3_objects)} objects to {output_dirpath}")
     except Exception:
-        logger.exception(f"Failed downloading S3 objects in {args.input_filepath} to  {args.output_filepath}")
+        logger.exception(f"Failed downloading S3 objects in {args.input_filepath} to  {output_dirpath}")
     if 0 < len(s3_downloads):
         output_filename = os.path.splitext(os.path.basename(args.input_filepath))
         output_filename = f"{output_filename[0]}-downloads{output_filename[1]}"
-        output_filepath = os.path.join(args.output_dirpath, output_filename)
+        output_filepath = os.path.join(output_dirpath, output_filename)
         logger.debug(f"Writing {len(s3_downloads)} metadata for downloads to {output_filepath}")
         with open(output_filepath, 'w') as of:
             json_dump({
@@ -116,7 +118,7 @@ def main() -> None:
                 },
                 'result': {
                     'input_count': len(s3_objects),
-                    'download_count': len(s3_downloads),
+                    'output_count': len(s3_downloads),
                     's3_downloads': s3_downloads
                 }
             }, of)

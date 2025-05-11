@@ -185,7 +185,7 @@ def main() -> None:
                 }
             },
             'result': {
-                'object_count': len(s3_objects),
+                'output_count': len(s3_objects),
                 's3_objects': s3_objects
             }
         }, of)
