@@ -78,10 +78,12 @@ class S3Object:
         self.full_path = full_path
         self.modified = modified
         self.size = size
-    
+    @property
+    def name(self) -> str:
+        return '/'.join(self.full_path)
     @property
     def fully_qualified_name(self) -> str:
-        return f"{self.bucket.name}/{'/'.join(self.full_path)}"
+        return f"{self.bucket.name}/{self.name}"
     
     def __str__(self) -> str:
         return f"{self.bucket}.S3Object[name={'/'.join(self.full_path)},modified={self.modified.isoformat()},size={self.size}]"

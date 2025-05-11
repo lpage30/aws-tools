@@ -68,6 +68,8 @@ def main() -> None:
                 data = data['s3_objects']
             if isinstance(data, list):
                 s3_objects = [S3Object.from_dict(o) for o in data]
+                s3_objects.sort(reverse=True)
+                logger.debug(f"Loaded {len(s3_objects)} S3 Objects")
             else:
                 raise TypeError(f"Data not type list. {args.input_filepath}")
         

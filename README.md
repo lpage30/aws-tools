@@ -182,6 +182,26 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           AWS profile name
   (3.13.2) larry@Larrys-MacBook-Pro aws-tools %
   ```
+  - download_objects
+  ```
+  usage: s3-download-objects [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME [--top-count TOP_COUNT]
+                           --input-filepath INPUT_FILEPATH --output-dirpath OUTPUT_DIRPATH
+
+  Download top X S3 Objects listed in input file to directory
+
+  options:
+    -h, --help            show this help message and exit
+    --log-level {debug,info,warning,error,critical}
+                          The level of logging output by this program
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+    --top-count TOP_COUNT
+                          download the most recent this many objects.
+    --input-filepath INPUT_FILEPATH
+                          full path of file containing bucket/object JSON
+    --output-dirpath OUTPUT_DIRPATH
+                          full path of directory under which <bucket-name>(as subdirectory)/<object-name>(as file) will be stored
+  ```
 ### s3
 contains an S3 client structured class used to do basic S3 things
 ### util

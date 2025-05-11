@@ -24,6 +24,7 @@ s3-list-buckets-like = "cli.s3.list_buckets_like:main"
 s3-list-objects-like = "cli.s3.list_objects_like:main"
 s3-list-bucket-objects-like = "cli.s3.list_bucket_objects_like:main"
 s3-objects-json-to-url = "cli.s3.objects_json_to_url:main"
+s3-download-objects = "cli.s3.download_objects:main"
 aws-sso-login = "cli.aws_sso_login:main"
 
 [tool.setuptools.packages.find]
