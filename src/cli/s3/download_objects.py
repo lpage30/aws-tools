@@ -29,7 +29,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--top-count",
-        default=1,
         type=int,
         help="download the most recent this many objects."
     )
@@ -80,7 +79,7 @@ def main() -> None:
         logger.exception(f"Failed loading S3 objects from {args.input_filepath}")
         return
         
-    download_count = min(len(s3_objects), args.top_count)
+    download_count = min(len(s3_objects), args.top_count) if args.top_count is not None else len(s3_objects)
 
     logger.info(f"downloading top {download_count}/{len(s3_objects)} S3 Objects to {output_dirpath}")
     s3_downloads = []

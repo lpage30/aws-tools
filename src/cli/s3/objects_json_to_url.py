@@ -28,7 +28,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--top-count",
-        default=1,
         type=int,
         help="convert the most recent this many objects."
     )
@@ -74,7 +73,8 @@ def main() -> None:
                 logger.debug(f"Loaded {len(s3_objects)} S3 Objects")
             else:
                 raise TypeError(f"Data not type list. {args.input_filepath}")
-        url_count = min(len(s3_objects), args.top_count)
+
+        url_count = min(len(s3_objects), args.top_count) if args.top_count is not None else len(s3_objects)            
         logger.info(f"converting top {url_count}/{len(s3_objects)} S3 Objects to url-form: {args.s3_url_template}")
         s3_urls = []
         for i in range(url_count):
