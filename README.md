@@ -150,15 +150,17 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
   ```
 - objects_json_to_url
   ```
-  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] --input-filepath INPUT_FILEPATH [--s3-url-template S3_URL_TEMPLATE]
-                              --output-filepath OUTPUT_FILEPATH
+  usage: s3-objects-json-to-url [-h] [--log-level {debug,info,warning,error,critical}] [--top-count TOP_COUNT] --input-filepath INPUT_FILEPATH
+                              [--s3-url-template S3_URL_TEMPLATE] --output-filepath OUTPUT_FILEPATH
 
-  Convert JSON file array of S3 Objects to array of S3 urls
+  Convert top x S3 Objects s3 urls
 
   options:
     -h, --help            show this help message and exit
     --log-level {debug,info,warning,error,critical}
                           The level of logging output by this program
+    --top-count TOP_COUNT
+                          convert the most recent this many objects.
     --input-filepath INPUT_FILEPATH
                           full path of file containing bucket/object JSON
     --s3-url-template S3_URL_TEMPLATE
@@ -170,19 +172,7 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
     --output-filepath OUTPUT_FILEPATH
                           full path of file where s3://bucket/object names will be written
   ```
-- aws_sso_login
-  ```
-  usage: aws-sso-login [-h] --aws-profile-name AWS_PROFILE_NAME
-
-  aws sso login --profile
-
-  options:
-    -h, --help            show this help message and exit
-    --aws-profile-name AWS_PROFILE_NAME
-                          AWS profile name
-  (3.13.2) larry@Larrys-MacBook-Pro aws-tools %
-  ```
-  - download_objects
+- download_objects
   ```
   usage: s3-download-objects [-h] [--log-level {debug,info,warning,error,critical}] --aws-profile-name AWS_PROFILE_NAME [--top-count TOP_COUNT]
                            --input-filepath INPUT_FILEPATH --output-dirpath OUTPUT_DIRPATH
@@ -201,6 +191,18 @@ contains 1 file per cli command. setup.py contains hooks to these cli commands
                           full path of file containing bucket/object JSON
     --output-dirpath OUTPUT_DIRPATH
                           full path of directory under which <bucket-name>(as subdirectory)/<object-name>(as file) will be stored
+  ```
+- aws_sso_login
+  ```
+  usage: aws-sso-login [-h] --aws-profile-name AWS_PROFILE_NAME
+
+  aws sso login --profile
+
+  options:
+    -h, --help            show this help message and exit
+    --aws-profile-name AWS_PROFILE_NAME
+                          AWS profile name
+  (3.13.2) larry@Larrys-MacBook-Pro aws-tools %
   ```
 ### s3
 contains an S3 client structured class used to do basic S3 things

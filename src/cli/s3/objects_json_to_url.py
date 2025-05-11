@@ -14,7 +14,7 @@ class ValidateS3UrlTemplate(argparse.Action):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=f"Convert JSON file array of S3 Objects to array of S3 urls",
+        description=f"Convert top x S3 Objects s3 urls",
         formatter_class=argparse.RawTextHelpFormatter
     )
 
@@ -24,6 +24,11 @@ def parse_args() -> argparse.Namespace:
         choices=["debug", "info", "warning", "error", "critical"],
         default="info",
         help="The level of logging output by this program",
+    )
+    parser.add_argument(
+        "--top-count",
+        default=1,
+        help="convert the most recent this many objects."
     )
     parser.add_argument(
         "--input-filepath",
@@ -72,24 +77,27 @@ def main() -> None:
                 logger.debug(f"Loaded {len(s3_objects)} S3 Objects")
             else:
                 raise TypeError(f"Data not type list. {args.input_filepath}")
-        
-        logger.info(f"Converting {len(s3_objects)} S3 Objects to {len(s3_objects)} urls of form {args.s3_url_template}")
-        s3_urls = [
-            { 
-                'url': url_formatter.to_url(o),
-                'date': o.modified.isoformat(),
-                'size': o.size
-            } for o in s3_objects
-        ]
+        url_count = min(len(s3_objects), args.top_count)
+        logger.info(f"converting top {url_count}/{len(s3_objects)} S3 Objects to url-form: {args.s3_url_template}")
+        s3_urls = []
+        for i in range(url_count):
+            s3_object = s3_objects[i]
+            s3_urls.append({
+                'url': url_formatter.to_url(s3_object),
+                'metadata': s3_object.__str__()
+            })
         logger.debug(f"Writing {len(s3_urls)} urls to {args.output_filepath}")
         with open(args.output_filepath, 'w') as of:
             json_dump({
                 'datetime': s3_url_datetime,
                 'args': {
+                    'top_count': args.top_count,
                     'input_filepath': args.input_filepath,
                     's3_url_template': args.s3_url_template
                 },
                 'result': {
+                    'input_count': len(s3_objects),
+                    'url_count': len(s3_urls),
                     's3_urls': s3_urls
                 }
             }, of)

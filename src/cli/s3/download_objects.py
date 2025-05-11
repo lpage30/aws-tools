@@ -2,7 +2,7 @@ import argparse
 import os
 from s3.s3_client import S3Client
 from util.aws_account_api import get_boto_session_aws_account
-from util.json_helpers import json_load
+from util.json_helpers import json_load, json_dump
 from util.logging import get_default_logger, initialize_logging
 from s3.s3_client import  S3Object
 
@@ -55,10 +55,13 @@ def main() -> None:
     initialize_logging(args.log_level)
     
     s3_objects = []
+    s3_download_datetime = None
     logger.info(f"Loading S3 Object definitions from {args.input_filepath}")
     try:
         with open(args.input_filepath, 'r') as inF:
             data = json_load(inF)
+            if 'datetime' in data:
+                s3_download_datetime = data['datetime']
             if 'result' in data:
                 data = data['result']
                 logger.info(f"1) result")
@@ -78,6 +81,7 @@ def main() -> None:
     download_count = min(len(s3_objects), args.top_count)
 
     logger.info(f"downloading top {download_count}/{len(s3_objects)} S3 Objects to {args.output_dirpath}")
+    s3_downloads = []
     try:
         session = get_boto_session_aws_account(args.aws_profile_name)
         s3_client = S3Client(session, args.no_verify_ssl)
@@ -87,11 +91,34 @@ def main() -> None:
             output_filepath = os.path.join(args.output_dirpath, output_filename)
             try:
                 s3_client.get_object_to_file(s3_object.bucket.name,  s3_object.name, output_filepath)
-                logger.info(f"{s3_object} downloaded to {output_filepath}")
+                logger.debug(f"{s3_object} downloaded to {output_filepath}")
+                s3_downloads.append({
+                    'filename': output_filename,
+                    'metadata': s3_object.__str__()
+                })
             except Exception:
                 logger.exception(f"Failed downloading {s3_object.fully_qualified_name} to {output_filepath}")
             
         logger.info(f"downloaded {download_count}/{len(s3_objects)} objects to {args.output_dirpath}")
     except Exception:
         logger.exception(f"Failed downloading S3 objects in {args.input_filepath} to  {args.output_filepath}")
+    if 0 < len(s3_downloads):
+        output_filename = os.path.splitext(os.path.basename(args.input_filepath))
+        output_filename = f"{output_filename[0]}-downloads{output_filename[1]}"
+        output_filepath = os.path.join(args.output_dirpath, output_filename)
+        logger.debug(f"Writing {len(s3_downloads)} metadata for downloads to {output_filepath}")
+        with open(output_filepath, 'w') as of:
+            json_dump({
+                'datetime': s3_download_datetime,
+                'args': {
+                    'top_count': args.top_count,
+                    'input_filepath': args.input_filepath
+                },
+                'result': {
+                    'input_count': len(s3_objects),
+                    'download_count': len(s3_downloads),
+                    's3_downloads': s3_downloads
+                }
+            }, of)
+            logger.info(f"{len(s3_downloads)} metadata for downloads written to {output_filepath}")
     
