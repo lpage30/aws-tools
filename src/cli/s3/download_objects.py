@@ -87,6 +87,7 @@ def main() -> None:
             output_filepath = os.path.join(args.output_dirpath, output_filename)
             try:
                 s3_client.get_object_to_file(s3_object.bucket.name,  s3_object.name, output_filepath)
+                logger.info(f"{s3_object} downloaded to {output_filepath}")
             except Exception:
                 logger.exception(f"Failed downloading {s3_object.fully_qualified_name} to {output_filepath}")
             
